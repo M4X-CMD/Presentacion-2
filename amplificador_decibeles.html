@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Problema del Amplificador — Decibelios</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --deep: #0f0f12;
+    --panel: #141418;
+    --card: #1a1a1f;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --orange: #ff6b1a;
+    --orange2: #ff8c42;
+    --orange-glow: rgba(255,107,26,0.18);
+    --amber: #ffb347;
+    --green: #39ff6a;
+    --green-dim: #1a5c2e;
+    --cyan: #00d4ff;
+    --text: #f0ede8;
+    --muted: #888880;
+    --muted2: #5a5a55;
+    --ff-display: 'Bebas Neue', sans-serif;
+    --ff-mono: 'Space Mono', monospace;
+    --ff-body: 'Barlow', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--text);
+    font-family: var(--ff-body);
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  /* ── NOISE TEXTURE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* ── WAVEFORM SVG BG ── */
+  .wave-bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.04;
+  }
+
+  .page {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 2rem 6rem;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    border-bottom: 0.5px solid var(--border2);
+    padding-bottom: 2.5rem;
+    margin-bottom: 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .header::before {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0;
+    width: 340px; height: 2px;
+    background: linear-gradient(90deg, var(--orange), transparent);
+  }
+
+  .eyebrow {
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--orange);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .eyebrow::before {
+    content: '';
+    width: 28px; height: 1px;
+    background: var(--orange);
+  }
+
+  .header h1 {
+    font-family: var(--ff-display);
+    font-size: clamp(52px, 10vw, 100px);
+    letter-spacing: 0.04em;
+    line-height: 0.9;
+    color: var(--text);
+    text-transform: uppercase;
+  }
+
+  .header h1 span {
+    color: var(--orange);
+    display: block;
+  }
+
+  .header-sub {
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 2rem;
+  }
+
+  .header-desc {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--muted);
+    max-width: 520px;
+  }
+
+  .spec-tags {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .spec-tag {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--muted2);
+    border: 0.5px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+
+  /* ── VU METER HERO ── */
+  .vu-hero {
+    margin: 0 0 3rem;
+    background: var(--panel);
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .vu-hero::after {
+    content: 'VU';
+    position: absolute;
+    right: 1.5rem; top: 1rem;
+    font-family: var(--ff-display);
+    font-size: 80px;
+    color: rgba(255,107,26,0.04);
+    letter-spacing: 0.1em;
+    pointer-events: none;
+  }
+
+  .vu-label {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--muted2);
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+
+  .vu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+    align-items: end;
+  }
+
+  .vu-item { }
+
+  .vu-item-label {
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    letter-spacing: 0.08em;
+  }
+
+  .vu-bar-wrap {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    height: 64px;
+  }
+
+  .vu-seg {
+    width: 8px;
+    border-radius: 1px;
+    background: var(--border2);
+    transition: background 0.4s, height 0.4s;
+  }
+
+  .vu-reading {
+    font-family: var(--ff-display);
+    font-size: 36px;
+    letter-spacing: 0.04em;
+    margin-top: 8px;
+  }
+
+  .vu-unit {
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  /* ── FORMULA SECTION ── */
+  .section { margin-bottom: 3rem; }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-num {
+    font-family: var(--ff-display);
+    font-size: 48px;
+    line-height: 1;
+    color: rgba(255,107,26,0.2);
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+
+  .section-title {
+    font-family: var(--ff-display);
+    font-size: 28px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .formula-card {
+    background: var(--card);
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    padding: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .formula-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--orange), transparent);
+  }
+
+  .formula-main {
+    font-family: var(--ff-mono);
+    font-size: clamp(18px, 4vw, 28px);
+    color: var(--text);
+    text-align: center;
+    padding: 1.5rem 1rem;
+    border: 0.5px solid var(--border);
+    border-radius: 3px;
+    background: rgba(255,107,26,0.04);
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .formula-main::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--orange), transparent);
+    animation: scanline 3s ease-in-out infinite;
+  }
+
+  @keyframes scanline {
+    0%,100% { opacity: 0.3; transform: scaleX(0.3); }
+    50% { opacity: 1; transform: scaleX(1); }
+  }
+
+  .formula-main .var-highlight {
+    color: var(--orange);
+    font-weight: 700;
+  }
+
+  .var-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .var-item {
+    background: rgba(255,255,255,0.03);
+    border: 0.5px solid var(--border);
+    border-radius: 3px;
+    padding: 0.75rem 1rem;
+  }
+
+  .var-sym {
+    font-family: var(--ff-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--orange);
+    margin-bottom: 4px;
+  }
+
+  .var-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── STEPS ── */
+  .steps-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .step-card {
+    background: var(--card);
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    padding: 1.75rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .step-card:hover { border-color: rgba(255,107,26,0.4); }
+
+  .step-card.step-original {
+    border-top: 2px solid var(--orange);
+  }
+
+  .step-card.step-double {
+    border-top: 2px solid var(--muted2);
+  }
+
+  .step-badge {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    padding: 4px 10px;
+    border-radius: 2px;
+    display: inline-block;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+
+  .badge-original {
+    background: rgba(255,107,26,0.15);
+    color: var(--orange);
+    border: 0.5px solid rgba(255,107,26,0.3);
+  }
+
+  .badge-double {
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    border: 0.5px solid var(--border);
+  }
+
+  .step-watts {
+    font-family: var(--ff-display);
+    font-size: 52px;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+  }
+
+  .step-watts-unit {
+    font-family: var(--ff-mono);
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 1.25rem;
+  }
+
+  .step-formula-mini {
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.04);
+    border: 0.5px solid var(--border);
+    border-radius: 2px;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 1rem;
+    line-height: 1.8;
+  }
+
+  .step-formula-mini .hl { color: var(--orange2); }
+
+  .step-result {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding-top: 1rem;
+    border-top: 0.5px solid var(--border);
+  }
+
+  .step-db {
+    font-family: var(--ff-display);
+    font-size: 56px;
+    letter-spacing: 0.04em;
+  }
+
+  .step-db-unit {
+    font-family: var(--ff-mono);
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  /* ── COMPARISON ── */
+  .comparison-card {
+    background: var(--panel);
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    padding: 2rem;
+  }
+
+  .compare-row {
+    display: grid;
+    grid-template-columns: 140px 1fr 80px;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .compare-label {
+    font-family: var(--ff-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .compare-label strong {
+    display: block;
+    font-size: 15px;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .bar-track {
+    height: 18px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bar-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 8px);
+  }
+
+  .bar-orange { background: linear-gradient(90deg, var(--orange), var(--amber)); }
+  .bar-cyan   { background: linear-gradient(90deg, #0099bb, var(--cyan)); }
+  .bar-ghost  { background: rgba(255,255,255,0.1); border: 0.5px dashed rgba(255,255,255,0.2); }
+
+  .compare-val {
+    font-family: var(--ff-display);
+    font-size: 22px;
+    letter-spacing: 0.04em;
+    text-align: right;
+  }
+
+  .compare-note {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    color: var(--muted2);
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 0.5px solid var(--border);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── OSCILLOSCOPE ── */
+  .scope-wrap {
+    background: #050e08;
+    border: 1px solid #1a3a22;
+    border-radius: 6px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+
+  .scope-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,255,80,0.025) 0, rgba(0,255,80,0.025) 1px, transparent 1px, transparent 40px),
+      repeating-linear-gradient(90deg, rgba(0,255,80,0.025) 0, rgba(0,255,80,0.025) 1px, transparent 1px, transparent 40px);
+    pointer-events: none;
+  }
+
+  .scope-label {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: #39ff6a;
+    opacity: 0.5;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+  }
+
+  canvas#scope { width: 100%; height: 120px; display: block; }
+
+  .scope-controls {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .scope-btn {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--green);
+    background: transparent;
+    border: 0.5px solid rgba(57,255,106,0.3);
+    border-radius: 2px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    text-transform: uppercase;
+  }
+
+  .scope-btn:hover {
+    background: rgba(57,255,106,0.1);
+  }
+
+  .scope-btn.active {
+    background: rgba(57,255,106,0.15);
+    color: #fff;
+    border-color: var(--green);
+  }
+
+  /* ── KNOB ILLUSTRATION ── */
+  .knob-row {
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+    background: var(--card);
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .knob-wrap { position: relative; flex-shrink: 0; }
+
+  .knob-svg { display: block; }
+
+  .knob-label {
+    text-align: center;
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    color: var(--muted2);
+    letter-spacing: 0.12em;
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+
+  .knob-text { flex: 1; }
+  .knob-text h3 {
+    font-family: var(--ff-display);
+    font-size: 22px;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .knob-text p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* ── CONCLUSION ── */
+  .conclusion-wrap {
+    background: var(--panel);
+    border: 0.5px solid rgba(255,107,26,0.25);
+    border-radius: 4px;
+    padding: 2.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .conclusion-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 100%, rgba(255,107,26,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .conclusion-wrap::after {
+    content: '⚡';
+    position: absolute;
+    right: 2rem; top: 1.5rem;
+    font-size: 80px;
+    opacity: 0.04;
+    pointer-events: none;
+  }
+
+  .conclusion-tag {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--orange);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .conclusion-tag::before {
+    content: '';
+    width: 20px; height: 1px;
+    background: var(--orange);
+  }
+
+  .conclusion-wrap h2 {
+    font-family: var(--ff-display);
+    font-size: 40px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin-bottom: 1.25rem;
+  }
+
+  .conclusion-wrap h2 span { color: var(--orange); }
+
+  .conclusion-wrap p {
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--muted);
+    max-width: 620px;
+    margin-bottom: 1rem;
+  }
+
+  .highlight-block {
+    background: rgba(255,107,26,0.08);
+    border-left: 3px solid var(--orange);
+    border-radius: 0 3px 3px 0;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    font-family: var(--ff-mono);
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.7;
+  }
+
+  .highlight-block strong { color: var(--orange); }
+
+  /* ── FINAL TECH NOTE ── */
+  .tech-note {
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin-top: 3rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1.25rem;
+    align-items: center;
+  }
+
+  .tech-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(255,107,26,0.1);
+    border: 0.5px solid rgba(255,107,26,0.25);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .tech-note-text h4 {
+    font-family: var(--ff-display);
+    font-size: 18px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .tech-note-text p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-glow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(255,107,26,0); }
+    50%      { box-shadow: 0 0 30px 4px rgba(255,107,26,0.18); }
+  }
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+
+  .animate-in {
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+  }
+
+  .step-card.step-original { animation: pulse-glow 4s ease-in-out infinite; }
+
+  /* ── TICKER TAPE ── */
+  .ticker {
+    background: var(--orange);
+    overflow: hidden;
+    padding: 6px 0;
+    margin-bottom: 3rem;
+    border-radius: 2px;
+  }
+
+  .ticker-inner {
+    display: flex;
+    white-space: nowrap;
+    animation: ticker 20s linear infinite;
+  }
+
+  .ticker-item {
+    font-family: var(--ff-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: #000;
+    padding: 0 2rem;
+    text-transform: uppercase;
+  }
+
+  .ticker-item::after {
+    content: '◆';
+    margin-left: 2rem;
+    opacity: 0.4;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 620px) {
+    .steps-grid { grid-template-columns: 1fr; }
+    .var-grid { grid-template-columns: 1fr; }
+    .header-sub { grid-template-columns: 1fr; }
+    .spec-tags { align-items: flex-start; }
+    .knob-row { flex-direction: column; }
+    .compare-row { grid-template-columns: 100px 1fr 70px; }
+  }
+
+  /* ── LOG CURVE CHART ── */
+  .chart-section {
+    background: var(--card);
+    border: 0.5px solid var(--border2);
+    border-radius: 4px;
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .chart-title {
+    font-family: var(--ff-mono);
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    color: var(--muted2);
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+  }
+
+  canvas#logChart {
+    width: 100%;
+    height: 200px;
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<!-- Waveform BG -->
+<svg class="wave-bg" viewBox="0 0 1200 800" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+  <polyline fill="none" stroke="white" stroke-width="1"
+    points="0,400 60,350 120,380 180,300 240,360 300,250 360,320 420,200 480,300 540,180 600,320 660,160 720,300 780,200 840,340 900,220 960,360 1020,240 1080,380 1140,260 1200,400"/>
+  <polyline fill="none" stroke="white" stroke-width="0.5" opacity="0.5"
+    points="0,420 40,390 80,430 120,360 160,420 200,340 240,410 280,320 320,430 360,290 400,430 440,270 480,430 520,250 560,430 600,230 640,430 680,210 720,430 760,240 800,420 840,270 880,410 920,280 960,400 1000,300 1040,390 1080,310 1120,380 1160,320 1200,420"/>
+</svg>
+
+<div class="page">
+
+  <!-- TICKER TAPE -->
+  <div class="ticker" style="animation-delay:0.2s">
+    <div class="ticker-inner">
+      <span class="ticker-item">Decibelios y logaritmos</span>
+      <span class="ticker-item">Diseño de amplificadores</span>
+      <span class="ticker-item">Percepción auditiva humana</span>
+      <span class="ticker-item">Potenciómetro logarítmico</span>
+      <span class="ticker-item">100 W → 20 dB</span>
+      <span class="ticker-item">200 W → 23 dB</span>
+      <span class="ticker-item">Duplicar potencia ≠ doble volumen</span>
+      <!-- repeat for seamless loop -->
+      <span class="ticker-item">Decibelios y logaritmos</span>
+      <span class="ticker-item">Diseño de amplificadores</span>
+      <span class="ticker-item">Percepción auditiva humana</span>
+      <span class="ticker-item">Potenciómetro logarítmico</span>
+      <span class="ticker-item">100 W → 20 dB</span>
+      <span class="ticker-item">200 W → 23 dB</span>
+      <span class="ticker-item">Duplicar potencia ≠ doble volumen</span>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header animate-in" style="animation-delay:0.1s">
+    <div class="eyebrow">Ingeniería de Audio · Nivel 1</div>
+    <h1>El problema del<span>amplificador</span></h1>
+    <div class="header-sub">
+      <p class="header-desc">Un cliente pide que el sonido "suene al doble". Tu asistente sugiere duplicar la potencia de 100 W a 200 W. ¿Tiene razón? Los logaritmos tienen la respuesta.</p>
+      <div class="spec-tags">
+        <span class="spec-tag">P₀ = 1 W REF</span>
+        <span class="spec-tag">BASE 10 LOG</span>
+        <span class="spec-tag">AUDIO · dB</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- VU METER HERO -->
+  <div class="vu-hero animate-in" style="animation-delay:0.2s">
+    <div class="vu-label">— Medidor de nivel VU —</div>
+    <div class="vu-grid">
+      <div class="vu-item">
+        <div class="vu-item-label">Potencia original</div>
+        <div class="vu-bar-wrap" id="vu1"></div>
+        <div class="vu-reading" style="color:var(--orange)">100<span class="vu-unit">W</span></div>
+      </div>
+      <div class="vu-item">
+        <div class="vu-item-label">Propuesta del asistente</div>
+        <div class="vu-bar-wrap" id="vu2"></div>
+        <div class="vu-reading" style="color:var(--muted)">200<span class="vu-unit">W</span></div>
+      </div>
+      <div class="vu-item">
+        <div class="vu-item-label">Doble real de volumen</div>
+        <div class="vu-bar-wrap" id="vu3"></div>
+        <div class="vu-reading" style="color:var(--muted2)">1000<span class="vu-unit">W</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OSCILLOSCOPE -->
+  <div class="scope-wrap animate-in" style="animation-delay:0.25s">
+    <div class="scope-label">— Osciloscopio · señal de audio —</div>
+    <canvas id="scope" height="120"></canvas>
+    <div class="scope-controls">
+      <button class="scope-btn active" onclick="setWave('sin')">Seno</button>
+      <button class="scope-btn" onclick="setWave('square')">Cuadrada</button>
+      <button class="scope-btn" onclick="setWave('saw')">Sierra</button>
+      <button class="scope-btn" onclick="setAmplitude(1)">100 W</button>
+      <button class="scope-btn" onclick="setAmplitude(2)">200 W</button>
+    </div>
+  </div>
+
+  <!-- FORMULA -->
+  <section class="section animate-in" style="animation-delay:0.3s">
+    <div class="section-head">
+      <div class="section-num">01</div>
+      <div class="section-title">La fórmula de los decibelios</div>
+    </div>
+    <div class="formula-card">
+      <div class="formula-main">
+        <span class="var-highlight">dB</span> = 10 · log<sub>10</sub> ( <span class="var-highlight">P</span> / <span class="var-highlight">P₀</span> )
+      </div>
+      <div class="var-grid">
+        <div class="var-item">
+          <div class="var-sym">P</div>
+          <div class="var-desc">Potencia actual del amplificador (Watts)</div>
+        </div>
+        <div class="var-item">
+          <div class="var-sym">P₀</div>
+          <div class="var-desc">Potencia de referencia base = <strong style="color:var(--text)">1 W</strong></div>
+        </div>
+        <div class="var-item">
+          <div class="var-sym">dB</div>
+          <div class="var-desc">Nivel de volumen percibido en decibelios</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEPS -->
+  <section class="section animate-in" style="animation-delay:0.35s">
+    <div class="section-head">
+      <div class="section-num">02</div>
+      <div class="section-title">Solución paso a paso</div>
+    </div>
+    <div class="steps-grid">
+
+      <div class="step-card step-original">
+        <div class="step-badge badge-original">Paso 1 · Original</div>
+        <div class="step-watts" style="color:var(--orange)">100</div>
+        <div class="step-watts-unit">Watts de potencia</div>
+        <div class="step-formula-mini">
+          dB = 10 · log₁₀ (100/1)<br>
+          log₁₀(100) = <span class="hl">2</span> &nbsp;← 10² = 100<br>
+          10 × 2 = <span class="hl">20</span>
+        </div>
+        <div class="step-result">
+          <div class="step-db" style="color:var(--orange)">20</div>
+          <div class="step-db-unit">dB</div>
+        </div>
+      </div>
+
+      <div class="step-card step-double">
+        <div class="step-badge badge-double">Paso 2 · Asistente</div>
+        <div class="step-watts" style="color:var(--muted)">200</div>
+        <div class="step-watts-unit">Watts de potencia</div>
+        <div class="step-formula-mini">
+          dB = 10 · log₁₀ (200/1)<br>
+          log₁₀(200) ≈ <span class="hl">2.301</span><br>
+          10 × 2.301 = <span class="hl">23.01</span>
+        </div>
+        <div class="step-result">
+          <div class="step-db" style="color:var(--muted)">23</div>
+          <div class="step-db-unit">dB</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- LOG CURVE CHART -->
+  <section class="section animate-in" style="animation-delay:0.4s">
+    <div class="section-head">
+      <div class="section-num">03</div>
+      <div class="section-title">Curva logarítmica</div>
+    </div>
+    <div class="chart-section">
+      <div class="chart-title">— dB vs Potencia (W) · escala log —</div>
+      <canvas id="logChart" height="200"></canvas>
+    </div>
+  </section>
+
+  <!-- COMPARISON BARS -->
+  <section class="section animate-in" style="animation-delay:0.45s">
+    <div class="section-head">
+      <div class="section-num">04</div>
+      <div class="section-title">Comparación visual</div>
+    </div>
+    <div class="comparison-card">
+
+      <div class="compare-row">
+        <div class="compare-label"><strong>100 W</strong>original</div>
+        <div class="bar-track">
+          <div class="bar-fill bar-orange" style="width:50%"></div>
+        </div>
+        <div class="compare-val" style="color:var(--orange)">20 dB</div>
+      </div>
+
+      <div class="compare-row">
+        <div class="compare-label"><strong>200 W</strong>asistente</div>
+        <div class="bar-track">
+          <div class="bar-fill bar-cyan" style="width:57.5%"></div>
+        </div>
+        <div class="compare-val" style="color:var(--cyan)">23 dB</div>
+      </div>
+
+      <div class="compare-row" style="opacity:0.45">
+        <div class="compare-label"><strong>40 dB</strong>doble real</div>
+        <div class="bar-track">
+          <div class="bar-fill bar-ghost" style="width:100%"></div>
+        </div>
+        <div class="compare-val" style="color:var(--muted2)">40 dB</div>
+      </div>
+
+      <div class="compare-note">
+        * Para doblar el volumen percibido se necesitarían 40 dB → 1000 W de potencia (×10 la original)
+      </div>
+    </div>
+  </section>
+
+  <!-- KNOB ILLUSTRATION -->
+  <div class="knob-row animate-in" style="animation-delay:0.5s">
+    <div>
+      <div class="knob-wrap">
+        <svg class="knob-svg" width="100" height="100" viewBox="0 0 100 100" id="knobSvg">
+          <!-- Outer ring -->
+          <circle cx="50" cy="50" r="44" fill="#1a1a1f" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+          <!-- Track arc -->
+          <path id="knobTrack" fill="none" stroke="rgba(255,107,26,0.2)" stroke-width="6" stroke-linecap="round"
+            d="M 18 72 A 38 38 0 1 1 82 72"/>
+          <!-- Active arc -->
+          <path id="knobArc" fill="none" stroke="var(--orange)" stroke-width="6" stroke-linecap="round"
+            d="M 18 72 A 38 38 0 0 1 50 12"/>
+          <!-- Center -->
+          <circle cx="50" cy="50" r="28" fill="#141418" stroke="rgba(255,255,255,0.07)" stroke-width="0.5"/>
+          <!-- Indicator dot -->
+          <circle id="knobDot" cx="50" cy="24" r="4" fill="var(--orange)"/>
+          <!-- Center bolt -->
+          <circle cx="50" cy="50" r="4" fill="rgba(255,255,255,0.15)"/>
+        </svg>
+        <div class="knob-label">Vol. control</div>
+      </div>
+    </div>
+    <div class="knob-text">
+      <h3>Potenciómetro logarítmico</h3>
+      <p>Para que el control de volumen se sienta natural al oído, el hardware no puede aumentar la potencia linealmente. Cada paso del perilla debe <strong style="color:var(--text)">multiplicar</strong> la potencia de forma exponencial, compensando cómo percibe el sonido el oído humano.</p>
+    </div>
+  </div>
+
+  <!-- CONCLUSION -->
+  <div class="conclusion-wrap animate-in" style="animation-delay:0.55s">
+    <div class="conclusion-tag">Conclusión del reto</div>
+    <h2>Tu asistente<span> está equivocado</span></h2>
+    <p>Se le inyectó el doble de energía eléctrica a la máquina (de 100 W a 200 W), pero el volumen apenas subió <strong style="color:var(--text)">3 dB</strong> — de 20 a 23 dB. Ni de cerca el doble de volumen.</p>
+
+    <div class="highlight-block">
+      ✦ Duplicar la potencia eléctrica → solo +3 dB de diferencia<br>
+      ✦ Para <strong>doblar el volumen percibido</strong> se necesita llegar a <strong>40 dB</strong><br>
+      ✦ Eso requiere <strong>1000 W</strong> → multiplicar la potencia ×10
+    </div>
+
+    <p>Los números validan la teoría: la escala de decibelios es logarítmica porque así funciona el oído. No hay atajos lineales en bioacústica.</p>
+  </div>
+
+  <!-- TECH NOTE -->
+  <div class="tech-note animate-in" style="animation-delay:0.6s">
+    <div class="tech-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.5">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 8v4l3 3"/>
+        <path d="M7 3.5A9 9 0 0 1 19.5 7"/>
+      </svg>
+    </div>
+    <div class="tech-note-text">
+      <h4>Nota técnica · Potenciómetro logarítmico (Audio Taper)</h4>
+      <p>En electrónica de audio, se usa un potenciómetro con curva logarítmica en lugar de lineal. A mitad de recorrido de la perilla, la resistencia solo ha cambiado el 10–15% en vez del 50%. Esto compensa la respuesta logarítmica del oído y crea una experiencia de volumen percibido suave y natural para el usuario.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── VU METER BARS ──
+function buildVU(id, segments, activeColor) {
+  const el = document.getElementById(id);
+  for (let i = 0; i < 16; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'vu-seg';
+    const h = 12 + i * 3.5;
+    seg.style.height = h + 'px';
+    if (i < segments) {
+      seg.style.background = i >= 13 ? '#ff3333' : i >= 10 ? '#ffb347' : activeColor;
+    }
+    el.appendChild(seg);
+  }
+}
+buildVU('vu1', 9, '#ff6b1a');
+buildVU('vu2', 11, '#888');
+buildVU('vu3', 15, '#444');
+
+// Animate VU bars on load
+setTimeout(() => {
+  const segs1 = document.querySelectorAll('#vu1 .vu-seg');
+  const segs2 = document.querySelectorAll('#vu2 .vu-seg');
+  segs1.forEach((s,i) => { s.style.transition = `background 0.3s ${i*0.04}s, height 0.3s ${i*0.04}s`; });
+  segs2.forEach((s,i) => { s.style.transition = `background 0.3s ${i*0.04}s, height 0.3s ${i*0.04}s`; });
+}, 100);
+
+// ── OSCILLOSCOPE ──
+const canvas = document.getElementById('scope');
+const ctx = canvas.getContext('2d');
+let waveType = 'sin';
+let amplitude = 1;
+let phase = 0;
+
+function resizeCanvas() {
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = 120 * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+function drawScope() {
+  const W = canvas.offsetWidth;
+  const H = 120;
+  ctx.clearRect(0, 0, W, H);
+
+  // Glow
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#39ff6a';
+  ctx.strokeStyle = '#39ff6a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+
+  const amp = 35 * amplitude;
+
+  for (let x = 0; x < W; x++) {
+    const t = (x / W) * Math.PI * 6 + phase;
+    let y;
+    if (waveType === 'sin') {
+      y = H/2 - Math.sin(t) * amp;
+    } else if (waveType === 'square') {
+      y = H/2 - (Math.sin(t) >= 0 ? 1 : -1) * amp;
+    } else {
+      const mod = ((t % (Math.PI*2)) / (Math.PI*2));
+      y = H/2 - (mod * 2 - 1) * amp;
+    }
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Ghost trail (dimmer, offset)
+  ctx.strokeStyle = 'rgba(57,255,106,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x < W; x++) {
+    const t = (x / W) * Math.PI * 6 + phase - 0.3;
+    let y;
+    if (waveType === 'sin') {
+      y = H/2 - Math.sin(t) * amp * 0.85;
+    } else if (waveType === 'square') {
+      y = H/2 - (Math.sin(t) >= 0 ? 1 : -1) * amp * 0.85;
+    } else {
+      const mod = ((t % (Math.PI*2)) / (Math.PI*2));
+      y = H/2 - (mod * 2 - 1) * amp * 0.85;
+    }
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  phase += 0.05;
+  requestAnimationFrame(drawScope);
+}
+drawScope();
+
+function setWave(type) {
+  waveType = type;
+  document.querySelectorAll('.scope-btn').forEach(b => {
+    if (b.textContent.toLowerCase().includes(type.substring(0,3)) || 
+        (type==='saw' && b.textContent.includes('Sierra')) ||
+        (type==='square' && b.textContent.includes('Cuadrada')) ||
+        (type==='sin' && b.textContent.includes('Seno'))) {
+      b.classList.add('active');
+    } else if (['Seno','Cuadrada','Sierra'].some(w => b.textContent.includes(w))) {
+      b.classList.remove('active');
+    }
+  });
+}
+
+function setAmplitude(a) {
+  amplitude = a;
+  document.querySelectorAll('.scope-btn').forEach(b => {
+    if ((a===1 && b.textContent.includes('100')) || (a===2 && b.textContent.includes('200'))) {
+      b.classList.add('active');
+    } else if (b.textContent.includes('100 W') || b.textContent.includes('200 W')) {
+      b.classList.remove('active');
+    }
+  });
+}
+
+// ── LOG CHART ──
+function drawLogChart() {
+  const c = document.getElementById('logChart');
+  const W = c.offsetWidth;
+  const H = 200;
+  c.width = W * window.devicePixelRatio;
+  c.height = H * window.devicePixelRatio;
+  const cx = c.getContext('2d');
+  cx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  const pad = { top: 20, right: 20, bottom: 40, left: 50 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  const maxW = 1100, maxDb = 32;
+
+  // Grid
+  cx.strokeStyle = 'rgba(255,255,255,0.05)';
+  cx.lineWidth = 0.5;
+  [10,20,30].forEach(db => {
+    const y = pad.top + chartH - (db / maxDb) * chartH;
+    cx.beginPath(); cx.moveTo(pad.left, y); cx.lineTo(pad.left+chartW, y); cx.stroke();
+    cx.fillStyle = 'rgba(255,255,255,0.25)';
+    cx.font = `10px 'Space Mono', monospace`;
+    cx.textAlign = 'right';
+    cx.fillText(db+'dB', pad.left-6, y+4);
+  });
+  [100,200,500,1000].forEach(w => {
+    const x = pad.left + (w / maxW) * chartW;
+    cx.beginPath(); cx.moveTo(x, pad.top); cx.lineTo(x, pad.top+chartH); cx.stroke();
+    cx.fillStyle = 'rgba(255,255,255,0.25)';
+    cx.font = `9px 'Space Mono', monospace`;
+    cx.textAlign = 'center';
+    cx.fillText(w+'W', x, pad.top+chartH+18);
+  });
+
+  // LOG CURVE
+  cx.beginPath();
+  cx.strokeStyle = '#ff6b1a';
+  cx.lineWidth = 2;
+  cx.shadowBlur = 6;
+  cx.shadowColor = 'rgba(255,107,26,0.4)';
+  for (let w = 1; w <= maxW; w += 5) {
+    const db = 10 * Math.log10(w);
+    const x = pad.left + (w / maxW) * chartW;
+    const y = pad.top + chartH - (db / maxDb) * chartH;
+    if (w === 1) cx.moveTo(x, y); else cx.lineTo(x, y);
+  }
+  cx.stroke();
+  cx.shadowBlur = 0;
+
+  // Fill under curve
+  cx.beginPath();
+  for (let w = 1; w <= maxW; w += 5) {
+    const db = 10 * Math.log10(w);
+    const x = pad.left + (w / maxW) * chartW;
+    const y = pad.top + chartH - (db / maxDb) * chartH;
+    if (w === 1) cx.moveTo(x, y); else cx.lineTo(x, y);
+  }
+  cx.lineTo(pad.left + chartW, pad.top + chartH);
+  cx.lineTo(pad.left, pad.top + chartH);
+  cx.closePath();
+  cx.fillStyle = 'rgba(255,107,26,0.06)';
+  cx.fill();
+
+  // LINEAR REFERENCE
+  cx.beginPath();
+  cx.strokeStyle = 'rgba(255,255,255,0.1)';
+  cx.lineWidth = 1;
+  cx.setLineDash([4,4]);
+  cx.moveTo(pad.left, pad.top + chartH);
+  cx.lineTo(pad.left + chartW, pad.top);
+  cx.stroke();
+  cx.setLineDash([]);
+
+  // DOTS for key points
+  const pts = [{w:100, label:'100W\n20dB', col:'#ff6b1a'}, {w:200, label:'200W\n23dB', col:'#00d4ff'}];
+  pts.forEach(p => {
+    const db = 10 * Math.log10(p.w);
+    const x = pad.left + (p.w / maxW) * chartW;
+    const y = pad.top + chartH - (db / maxDb) * chartH;
+    cx.beginPath();
+    cx.arc(x, y, 5, 0, Math.PI*2);
+    cx.fillStyle = p.col;
+    cx.shadowBlur = 10;
+    cx.shadowColor = p.col;
+    cx.fill();
+    cx.shadowBlur = 0;
+
+    const lines = p.label.split('\n');
+    cx.fillStyle = p.col;
+    cx.font = `bold 10px 'Space Mono', monospace`;
+    cx.textAlign = 'center';
+    cx.fillText(lines[0], x, y - 18);
+    cx.fillStyle = 'rgba(255,255,255,0.4)';
+    cx.font = `9px 'Space Mono', monospace`;
+    cx.fillText(lines[1], x, y - 7);
+  });
+
+  // Axis labels
+  cx.fillStyle = 'rgba(255,255,255,0.2)';
+  cx.font = `10px 'Space Mono', monospace`;
+  cx.textAlign = 'center';
+  cx.fillText('Potencia (W)', pad.left + chartW/2, H - 2);
+}
+
+window.addEventListener('resize', drawLogChart);
+setTimeout(drawLogChart, 200);
+
+// ── KNOB ANIMATION ──
+let knobAngle = 0;
+function animateKnob() {
+  knobAngle += 0.3;
+  const maxAngle = 240;
+  const angle = (Math.sin(knobAngle * 0.01 * Math.PI) * 0.5 + 0.5) * maxAngle;
+  const rad = ((angle - 120) * Math.PI) / 180;
+  const cx2 = 50, cy2 = 50, r = 26;
+  const dotX = cx2 + r * Math.sin(rad);
+  const dotY = cy2 - r * Math.cos(rad);
+  const dot = document.getElementById('knobDot');
+  if (dot) {
+    dot.setAttribute('cx', dotX.toFixed(1));
+    dot.setAttribute('cy', dotY.toFixed(1));
+  }
+  // Update arc
+  const startRad = (-120) * Math.PI / 180;
+  const endRad = rad;
+  const r2 = 38;
+  const sx = 50 + r2 * Math.sin(startRad);
+  const sy = 50 - r2 * Math.cos(startRad);
+  const ex = 50 + r2 * Math.sin(endRad);
+  const ey = 50 - r2 * Math.cos(endRad);
+  const largeArc = angle > 180 ? 1 : 0;
+  const arc = document.getElementById('knobArc');
+  if (arc) arc.setAttribute('d', `M ${sx.toFixed(1)} ${sy.toFixed(1)} A ${r2} ${r2} 0 ${largeArc} 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`);
+  requestAnimationFrame(animateKnob);
+}
+animateKnob();
+
+// ── INTERSECTION OBSERVER for animate-in ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) e.target.style.animationPlayState = 'running';
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.animate-in').forEach(el => {
+  el.style.animationPlayState = 'paused';
+  observer.observe(el);
+});
+</script>
+</body>
+</html>
